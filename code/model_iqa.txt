@@ -1,0 +1,40 @@
+Vocab Size: 85, Number of Classes: 32
+Train samples: 559991, Val samples: 69999, Test samples: 69999
+Epoch 1/10
+Train Loss: 1.1382, Train Acc: 0.4106                                                                                                                                                                                                                
+Val Loss: 1.0035, Val Acc: 0.4241
+Best model saved.
+Epoch 2/10
+Train Loss: 1.0005, Train Acc: 0.4318                                                                                                                                                                                                                
+Val Loss: 0.9891, Val Acc: 0.4474
+Best model saved.
+Epoch 3/10
+Train Loss: 0.9854, Train Acc: 0.4553                                                                                                                                                                                                                
+Val Loss: 0.9747, Val Acc: 0.4614
+Best model saved.
+Epoch 4/10
+Train Loss: 0.9781, Train Acc: 0.4616                                                                                                                                                                                                                
+Val Loss: 0.9732, Val Acc: 0.4610
+Epoch 5/10
+Train Loss: 0.9750, Train Acc: 0.4633                                                                                                                                                                                                                
+Val Loss: 0.9731, Val Acc: 0.4617
+Best model saved.
+Epoch 6/10
+Train Loss: 0.9735, Train Acc: 0.4645                                                                                                                                                                                                                
+Val Loss: 0.9713, Val Acc: 0.4651
+Best model saved.
+Epoch 7/10
+Train Loss: 0.9725, Train Acc: 0.4648                                                                                                                                                                                                                
+Val Loss: 0.9716, Val Acc: 0.4633
+Epoch 8/10
+Train Loss: 0.9727, Train Acc: 0.4672                                                                                                                                                                                                                
+Val Loss: 0.9713, Val Acc: 0.4635
+Epoch 9/10
+Train Loss: 0.9708, Train Acc: 0.4660                                                                                                                                                                                                                
+Val Loss: 0.9686, Val Acc: 0.4654
+Best model saved.
+Epoch 10/10
+Train Loss: 0.9701, Train Acc: 0.4680                                                                                                                                                                                                                
+Val Loss: 0.9698, Val Acc: 0.4669
+Best model saved.
+Test Loss: 0.9727, Test Acc: 0.4620   

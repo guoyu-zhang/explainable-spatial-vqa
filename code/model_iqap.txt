@@ -1,0 +1,2 @@
+Train Loss: 1.3598, Train Acc Answer: 0.4820, Train Acc Program: 0.0187, Train Token Acc: 0.8450, Train BLEU: 0.0335, Train ROUGE-L: 0.0342
+Val Loss: 1.3227, Val Acc Answer: 0.4860, Val Acc Program: 0.0210, Val Token Acc: 0.8512, Val BLEU: 0.0337, Val ROUGE-L: 0.0345

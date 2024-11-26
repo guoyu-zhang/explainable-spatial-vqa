@@ -1,0 +1,17 @@
+{
+    "info": {
+        "split": "test",
+        "license": "Creative Commons Attribution (CC BY 4.0)",
+        "version": "1.0",
+        "date": "2/14/2017"
+    },
+    "questions": [
+        {
+            "image_index": 0,
+            "split": "test",
+            "image_filename": "CLEVR_test_000000.png",
+            "question_index": 0,
+            "question": "Is there anything else that is the same shape as the small brown matte object?"
+        }
+    ]
+}

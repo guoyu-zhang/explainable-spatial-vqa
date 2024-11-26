@@ -1,0 +1,107 @@
+{
+    "info": {
+        "split": "train",
+        "license": "Creative Commons Attribution (CC BY 4.0)",
+        "version": "1.0",
+        "date": "2/14/2017"
+    },
+    "questions": [
+        {
+            "image_index": 0,
+            "program": [
+                {
+                    "inputs": [],
+                    "function": "scene",
+                    "value_inputs": []
+                },
+                {
+                    "inputs": [
+                        0
+                    ],
+                    "function": "filter_size",
+                    "value_inputs": [
+                        "large"
+                    ]
+                },
+                {
+                    "inputs": [
+                        1
+                    ],
+                    "function": "filter_color",
+                    "value_inputs": [
+                        "green"
+                    ]
+                },
+                {
+                    "inputs": [
+                        2
+                    ],
+                    "function": "count",
+                    "value_inputs": []
+                },
+                {
+                    "inputs": [],
+                    "function": "scene",
+                    "value_inputs": []
+                },
+                {
+                    "inputs": [
+                        4
+                    ],
+                    "function": "filter_size",
+                    "value_inputs": [
+                        "large"
+                    ]
+                },
+                {
+                    "inputs": [
+                        5
+                    ],
+                    "function": "filter_color",
+                    "value_inputs": [
+                        "purple"
+                    ]
+                },
+                {
+                    "inputs": [
+                        6
+                    ],
+                    "function": "filter_material",
+                    "value_inputs": [
+                        "metal"
+                    ]
+                },
+                {
+                    "inputs": [
+                        7
+                    ],
+                    "function": "filter_shape",
+                    "value_inputs": [
+                        "cube"
+                    ]
+                },
+                {
+                    "inputs": [
+                        8
+                    ],
+                    "function": "count",
+                    "value_inputs": []
+                },
+                {
+                    "inputs": [
+                        3,
+                        9
+                    ],
+                    "function": "greater_than",
+                    "value_inputs": []
+                }
+            ],
+            "question_index": 0,
+            "image_filename": "CLEVR_train_000000.png",
+            "question_family_index": 2,
+            "split": "train",
+            "answer": "yes",
+            "question": "Are there more big green things than large purple shiny cubes?"
+        }
+    ]
+}
