@@ -42,7 +42,7 @@ def build_model(args):
     model = torch.nn.Sequential(*layers)
     # print(model)
     # Set device: MPS (Metal Performance Shaders) if available, otherwise CPU
-    device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+    device = torch.device('mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu'))
     model.to(device)
     model.eval()
     return model, device

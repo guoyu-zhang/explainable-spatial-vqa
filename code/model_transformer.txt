@@ -1,0 +1,3 @@
+epoch 16
+Val Loss: 2.7763, Val Acc Answer: 0.4011, Val Acc Program: 0.0000, Val Token Acc: 0.2373
+No improvement in validation answer accuracy for 1 epochs.

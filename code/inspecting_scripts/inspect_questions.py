@@ -110,7 +110,7 @@ def load_and_decode_samples(h5_file_path, question_idx_to_token, program_idx_to_
 def main():
     # Argument parsing
     parser = argparse.ArgumentParser(description='Simple Decode CLEVR HDF5 dataset samples.')
-    parser.add_argument('--h5_file_path', type=str, default='h5_files/train_questions.h5',
+    parser.add_argument('--h5_file_path', type=str, default='h5_files/val_questions.h5',
                         help='Path to the HDF5 file (default: test_questions.h5)')
     parser.add_argument('--vocab_json_path', type=str, default='data/vocab.json',
                         help='Path to the vocabulary JSON file (default: data/vocab.json)')

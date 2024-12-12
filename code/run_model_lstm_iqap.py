@@ -3,19 +3,15 @@ import json
 import torch
 import torch.nn as nn
 import numpy as np
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 import sys
-
-# Import necessary classes and functions from the training script
-# Assuming the training script is named 'train_vqa.py' and contains the required classes.
-# If not, you can copy the necessary classes into this script.
 
 # Configuration
 class Config:
     FEATURES_H5 = '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
-    QUESTIONS_H5 = '/Users/guoyuzhang/University/Y5/diss/code/h5_files/train_questions.h5'
-    VOCAB_JSON = '/Users/guoyuzhang/University/Y5/diss/code/data/vocab.json'
-    BATCH_SIZE = 1
+    QUESTIONS_H5 = '/Users/guoyuzhang/University/Y5/diss/vqa/code/h5_files/train_questions.h5'
+    VOCAB_JSON = '/Users/guoyuzhang/University/Y5/diss/vqa/code/data/vocab.json'
+    BATCH_SIZE = 32  # Increased batch size for efficiency
     EMBEDDING_DIM = 256
     LSTM_HIDDEN_DIM = 512
     IMAGE_FEATURE_DIM = 1024 * 14 * 14  # Flattened image features
@@ -24,7 +20,7 @@ class Config:
     PROGRAM_VOCAB_SIZE = None  # To be determined from data
 
 # Custom Dataset (Same as in training script)
-class VQADatasetInference(torch.utils.data.Dataset):
+class VQADatasetInference(Dataset):
     def __init__(self, features_h5_path, questions_h5_path, indices):
         self.features_h5_path = features_h5_path
         self.questions_h5_path = questions_h5_path
@@ -128,6 +124,55 @@ def get_data_info(questions_h5_path):
         program_vocab_size = int(np.max(programs)) + 1
     return vocab_size, num_classes, program_vocab_size
 
+# Function to evaluate program matching
+def evaluate_program_matching(model, dataloader, device, program_idx_to_token, program_seq_len):
+    model.eval()
+    total_tokens = 0
+    matched_tokens = 0
+    total_programs = 0
+    exact_matches = 0
+
+    with torch.no_grad():
+        for batch in dataloader:
+            image_features, questions, answers, programs = batch
+            image_features = image_features.to(device)
+            questions = questions.to(device)
+            programs = programs.to(device)
+
+            # Forward pass
+            _, outputs_program = model(image_features, questions)
+
+            # Get predicted programs
+            _, predicted_program = torch.max(outputs_program, 2)  # (batch, seq_len)
+            predicted_program = predicted_program.cpu().numpy()
+            ground_truth_program = programs.cpu().numpy()
+
+            for pred_prog, gt_prog in zip(predicted_program, ground_truth_program):
+                # Remove padding (assuming padding index is 0)
+                pred_tokens = [token for token in pred_prog if token != 0]
+                gt_tokens = [token for token in gt_prog if token != 0]
+
+                # Update total tokens
+                total_tokens += len(gt_tokens)
+
+                # Compare token by token
+                matches = sum(p == g for p, g in zip(pred_tokens, gt_tokens))
+                matched_tokens += matches
+                # print(pred_tokens, "\n" ,gt_tokens)
+                # print(matches, len(pred_tokens), len(gt_tokens))
+                # Update total programs
+                total_programs += 1
+
+                # Check for exact match
+                if np.array_equal(pred_tokens, gt_tokens):
+                    exact_matches += 1
+
+    token_accuracy = matched_tokens / total_tokens * 100 if total_tokens > 0 else 0
+    exact_match_accuracy = exact_matches / total_programs * 100 if total_programs > 0 else 0
+
+    print(f"Token-Level Accuracy: {token_accuracy:.2f}%")
+    print(f"Exact Program Match Accuracy: {exact_match_accuracy:.2f}%")
+
 def main():
     # Get data info
     vocab_size, num_classes, program_vocab_size = get_data_info(Config.QUESTIONS_H5)
@@ -156,19 +201,35 @@ def main():
     ).to(device)
 
     # Load the trained model weights
-    model.load_state_dict(torch.load('best_resnet101_lstm_iqap_model.pth', map_location=device))
+    model.load_state_dict(torch.load('models/best_resnet101_lstm_iqap_model.pth', map_location=device))
     model.eval()
 
-    # Select a sample index for inference (you can change this index)
-    sample_index = 0  # Change this to select a different sample
+    # Create a list of all indices
+    with h5py.File(Config.QUESTIONS_H5, 'r') as f:
+        total_samples = len(f['questions'])
+    # print(len(list(range(total_samples))))
+    all_indices = list(range(total_samples))
 
     # Create dataset and dataloader for inference
-    indices = [sample_index]
-    inference_dataset = VQADatasetInference(Config.FEATURES_H5, Config.QUESTIONS_H5, indices)
-    inference_loader = DataLoader(inference_dataset, batch_size=1, shuffle=False)
+    inference_dataset = VQADatasetInference(Config.FEATURES_H5, Config.QUESTIONS_H5, all_indices)
+    inference_loader = DataLoader(inference_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
 
-    # Get the sample
-    for image_features, questions, answers, programs in inference_loader:
+    # Evaluate program matching
+    evaluate_program_matching(
+        model=model,
+        dataloader=inference_loader,
+        device=device,
+        program_idx_to_token=program_idx_to_token,
+        program_seq_len=Config.PROGRAM_SEQ_LEN
+    )
+
+    # Optionally, if you still want to print some sample inferences:
+    print("\nSample Inferences:")
+    sample_loader = DataLoader(inference_dataset, batch_size=1, shuffle=False)
+    for i, batch in enumerate(sample_loader):
+        # if i >= 10:  # Print only first 10 samples
+        #     break
+        image_features, questions, answers, programs = batch
         image_features = image_features.to(device)
         questions = questions.to(device)
         answers = answers.to(device)
@@ -185,7 +246,7 @@ def main():
         # Get predicted program
         _, predicted_program = torch.max(outputs_program, 2)  # (batch, seq_len)
         predicted_program = predicted_program.squeeze(0).cpu().numpy()
-        predicted_program_tokens = [program_idx_to_token.get(idx, '<UNK>') for idx in predicted_program]
+        predicted_program_tokens = [program_idx_to_token.get(idx, '<UNK>') for idx in predicted_program if idx != 0]
 
         # Convert input question indices to tokens
         question_indices = questions.squeeze(0).cpu().numpy()
@@ -200,17 +261,17 @@ def main():
         answer_token = answer_idx_to_token.get(answer_idx, '<UNK>')
 
         # Output the data used in inference and the model's result
+        print(f"\nSample {i + 1}:")
         print("Input Question Tokens:")
         print(' '.join(question_tokens))
         print("\nGround Truth Answer:")
         print(answer_token)
-        print("\nPredicted Answer:")
+        print("Predicted Answer:")
         print(predicted_answer_token)
-        print("\nGround Truth Program Tokens:")
+        print("Ground Truth Program Tokens:")
         print(' '.join(program_tokens))
-        print("\nPredicted Program Tokens:")
+        print("Predicted Program Tokens:")
         print(' '.join(predicted_program_tokens))
-        break  # Only process the first sample
 
 if __name__ == "__main__":
     main()

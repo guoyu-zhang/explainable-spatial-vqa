@@ -5,23 +5,29 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
+import os
 
 # Configuration
 class Config:
-    FEATURES_H5 = '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
-    QUESTIONS_H5 = '/Users/guoyuzhang/University/Y5/diss/code/h5_files/train_questions.h5'
+    LAPTOP_OR_CLUSTER = 'CLUSTER' # CHANGE this depending on running on cluster or pc
+    PATH = '/exports/eddie/scratch/s1808795/vqa/code/' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/'
+    FEATURES_H5 = PATH + 'data/train_features.h5'
+    QUESTIONS_H5 = PATH + 'h5_files/train_questions.h5'
+    MODELS_DIR = PATH + 'models'
+    MODEL_NAME = PATH + 'models/best_lstm_iqap.pth'
     BATCH_SIZE = 64
     EMBEDDING_DIM = 256
     LSTM_HIDDEN_DIM = 512
     IMAGE_FEATURE_DIM = 1024 * 14 * 14  # Flattened image features
     NUM_CLASSES = None  # To be determined from data
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 100
     LEARNING_RATE = 1e-3
     VALIDATION_SPLIT = 0.1
     TEST_SPLIT = 0.1
     SEED = 42
     PROGRAM_SEQ_LEN = 27  # Length of the program sequence
     PROGRAM_VOCAB_SIZE = None  # To be determined from data
+    PATIENCE = 10
 
 torch.manual_seed(Config.SEED)
 torch.backends.cudnn.deterministic = True
@@ -247,6 +253,7 @@ def evaluate(model, dataloader, criterion_answer, criterion_program, device):
 
 # Main Training Loop
 def main():
+    os.makedirs(Config.MODELS_DIR, exist_ok=True)
     # Get data info
     vocab_size, num_classes, program_vocab_size = get_data_info(Config.QUESTIONS_H5)
     Config.NUM_CLASSES = num_classes
@@ -302,6 +309,8 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
 
     best_val_acc = 0.0
+    patience = Config.PATIENCE
+    epochs_no_improve = 0
 
     for epoch in range(Config.NUM_EPOCHS):
         print(f"\nEpoch {epoch+1}/{Config.NUM_EPOCHS}")
@@ -325,11 +334,19 @@ def main():
         # Save the best model based on validation answer accuracy
         if val_acc_answer > best_val_acc:
             best_val_acc = val_acc_answer
-            torch.save(model.state_dict(), 'best_resnet101_lstm_iqap_model.pth')
+            torch.save(model.state_dict(), Config.MODEL_NAME)
             print("Best model saved.")
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
+            print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s).")
+
+            if epochs_no_improve >= patience:
+                print("Early stopping triggered. Stopping training.")
+                break
 
     # Load the best model for testing
-    model.load_state_dict(torch.load('best_resnet101_lstm_iqap_model.pth'))
+    model.load_state_dict(torch.load(Config.MODEL_NAME))
     test_loss, test_acc_answer, test_acc_program, test_token_acc = evaluate(
         model, test_loader, criterion_answer, criterion_program, device)
     print(f"\nTest Loss: {test_loss:.4f}, "
