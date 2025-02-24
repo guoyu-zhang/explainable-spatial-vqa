@@ -1,0 +1,17 @@
+{
+  "color=blue": 1,
+  "color=brown": 2,
+  "color=cyan": 3,
+  "color=gray": 4,
+  "color=green": 5,
+  "color=purple": 6,
+  "color=red": 7,
+  "color=yellow": 8,
+  "material=metal": 9,
+  "material=rubber": 10,
+  "shape=cube": 11,
+  "shape=cylinder": 12,
+  "shape=sphere": 13,
+  "size=large": 14,
+  "size=small": 15
+}

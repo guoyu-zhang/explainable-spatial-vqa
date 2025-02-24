@@ -14,12 +14,12 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer, TransformerDec
 
 # Configuration
 class Config:
-    LAPTOP_OR_CLUSTER = 'CLUSTER'  # Change this depending on running on cluster or PC
+    LAPTOP_OR_CLUSTER = 'L'  # Change this depending on running on cluster or PC
     PATH = '/exports/eddie/scratch/s1808795/vqa/code/' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/'
     FEATURES_H5 = PATH + 'data/train_features.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
     QUESTIONS_H5 = PATH + 'h5_files/train_questions.h5'
     MODELS_DIR = PATH + 'models'
-    MODEL_NAME = PATH + 'models/best_transformer_iqap.pth'
+    MODEL_NAME = PATH + 'models/cot_best_transformer_iqap.pth'
     BATCH_SIZE = 64
     EMBEDDING_DIM = 256
     HIDDEN_DIM = 256  # Match embedding_dim for consistency
@@ -142,7 +142,7 @@ class VQAModel(nn.Module):
 
         # Transformer Encoder
         encoder_layers = TransformerEncoderLayer(d_model=embedding_dim, nhead=4)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers=1)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers=2)
 
         # Answer classifier (MLP)
         self.answer_classifier = nn.Sequential(
@@ -416,16 +416,6 @@ def evaluate(model, dataloader, criterion_answer, criterion_program, device):
     epoch_acc_program = correct_program / total
     epoch_token_acc = correct_tokens / total_tokens
 
-    # **Addition Starts Here**
-    # Print all sample predictions and ground truths
-    # print("\nValidation Predictions:")
-    # for idx, sample in enumerate(sample_predictions, 1):
-    #     print(f"Sample {idx}:")
-    #     print(f"  Predicted Answer: {sample['predicted_answer']}, Ground Truth Answer: {sample['ground_truth_answer']}")
-    #     print(f"  Predicted Program: {sample['predicted_program']}")
-    #     print(f"  Ground Truth Program: {sample['ground_truth_program']}\n")
-    # **Addition Ends Here**
-
     return epoch_loss, epoch_acc_answer, epoch_acc_program, epoch_token_acc
 
 # Main Training Loop
@@ -484,7 +474,7 @@ def main():
     ).to(device)
 
     criterion_answer = nn.CrossEntropyLoss()
-    criterion_program = nn.CrossEntropyLoss(ignore_index=0)  # Assuming 0 is padding index
+    criterion_program = nn.CrossEntropyLoss() 
     optimizer = torch.optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 

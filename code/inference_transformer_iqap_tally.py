@@ -9,8 +9,8 @@ import numpy as np
 class Config:
     LAPTOP_OR_CLUSTER = 'L'  # Change this depending on running on cluster or PC
     PATH = '/exports/eddie/scratch/s1808795/vqa/code/' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/'
-    FEATURES_H5 = PATH + 'data/train_features.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
-    QUESTIONS_H5 = PATH + 'h5_files/train_questions.h5'
+    FEATURES_H5 = PATH + 'data/train_features.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/val_features.h5'
+    QUESTIONS_H5 = PATH + 'h5_files/val_questions.h5'
     MODELS_DIR = PATH + 'models'
     MODEL_NAME = PATH + 'models/best_transformer_iqap.pth'
     EMBEDDING_DIM = 256
@@ -275,8 +275,13 @@ def load_model(device):
     model.eval()
     return model
 
-# Inference Function
-def run_inference(idx=0):
+# Inference Function with Tallying
+def run_inference(tally=True, max_samples=None):
+    """
+    Args:
+        tally (bool): If True, tally up the four cases.
+        max_samples (int, optional): Maximum number of samples to process. If None, process all.
+    """
     # Device configuration
     device = torch.device('mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu'))
     print(f"Using device: {device}")
@@ -284,39 +289,72 @@ def run_inference(idx=0):
     # Load the model
     model = load_model(device)
     print("Model loaded successfully.")
-    
-    for sample_idx in range(idx):
-        # Create dataset
-        dataset = VQADatasetSingleSample(Config.FEATURES_H5, Config.QUESTIONS_H5, sample_idx)
 
-        # Get the sample
-        image_features, question, answer, program = dataset[0]
-        image_features = image_features.unsqueeze(0).to(device)  # (1, num_image_tokens, image_feature_dim)
-        question = question.unsqueeze(0).to(device)  # (1, question_seq_len)
+    # Open the questions file once
+    with h5py.File(Config.QUESTIONS_H5, 'r') as f_questions:
+        total_samples = f_questions['questions'].shape[0]
+        if max_samples is not None:
+            total_samples = min(total_samples, max_samples)
+        print(f"Total samples to process: {total_samples}")
 
-        # Run inference
-        with torch.no_grad():
-            answer_output, generated_program = model(image_features, question)
+        # Initialize tally counters
+        tally_both_correct = 0
+        tally_answer_correct_program_incorrect = 0
+        tally_answer_incorrect_program_correct = 0
+        tally_both_incorrect = 0
 
-            # Get predicted answer
-            _, predicted_answer = torch.max(answer_output, 1)  # (1,)
-            predicted_answer = predicted_answer.item()
+        for sample_idx in range(total_samples):
+            # Create dataset for the current sample
+            dataset = VQADatasetSingleSample(Config.FEATURES_H5, Config.QUESTIONS_H5, sample_idx)
 
-            # Get generated program
-            generated_program = generated_program.squeeze(0).tolist()  # (program_seq_len,)
+            # Get the sample
+            image_features, question, answer, program = dataset[0]
+            image_features = image_features.unsqueeze(0).to(device)  # (1, num_image_tokens, image_feature_dim)
+            question = question.unsqueeze(0).to(device)  # (1, question_seq_len)
 
-        # Load ground truth for reference
-        with h5py.File(Config.QUESTIONS_H5, 'r') as f:
-            ground_truth_answer = int(f['answers'][sample_idx])
-            ground_truth_program = f['programs'][sample_idx].tolist()   
+            # Run inference
+            with torch.no_grad():
+                answer_output, generated_program = model(image_features, question)
 
-        # Print the results
-        print(f"\n=== Inference Results for Sample Index: {sample_idx} ===")
-        print(f"Question: {question_to_string(question.squeeze(0).tolist())}")
-        print(f"Predicted Answer: {predicted_answer} | Ground Truth Answer: {ground_truth_answer}")
-        print(f"Predicted Program: {generated_program}")
-        print(f"Ground Truth Program: {ground_truth_program}")
-        print("=============================================\n")
+                # Get predicted answer
+                _, predicted_answer = torch.max(answer_output, 1)  # (1,)
+                predicted_answer = predicted_answer.item()
+
+                # Get generated program
+                generated_program = generated_program.squeeze(0).tolist()  # (program_seq_len,)
+
+            # Load ground truth for reference
+            ground_truth_answer = int(f_questions['answers'][sample_idx])
+            ground_truth_program = f_questions['programs'][sample_idx].tolist()
+
+            # Compare predicted and ground truth answers
+            answer_correct = (predicted_answer == ground_truth_answer)
+
+            # Compare predicted and ground truth programs
+            program_correct = (generated_program == ground_truth_program)
+
+            # Update tally counters based on comparisons
+            if answer_correct and program_correct:
+                tally_both_correct += 1
+            elif answer_correct and not program_correct:
+                tally_answer_correct_program_incorrect += 1
+            elif not answer_correct and program_correct:
+                tally_answer_incorrect_program_correct += 1
+            else:
+                tally_both_incorrect += 1
+
+            # (Optional) Print progress every 100 samples
+            if (sample_idx + 1) % 100 == 0:
+                print(f"Processed {sample_idx + 1}/{total_samples} samples.")
+
+        # After processing all samples, print the tallies
+        print("\n=== Inference Tally Results ===")
+        print(f"Total Samples Processed: {total_samples}")
+        print(f"1. Both Answer and Program Correct: {tally_both_correct}")
+        print(f"2. Answer Correct but Program Incorrect: {tally_answer_correct_program_incorrect}")
+        print(f"3. Answer Incorrect but Program Correct: {tally_answer_incorrect_program_correct}")
+        print(f"4. Both Answer and Program Incorrect: {tally_both_incorrect}")
+        print("================================\n")
 
 # Utility function to convert question indices to string (if vocabulary is available)
 def question_to_string(question_indices):
@@ -340,7 +378,9 @@ def program_to_string(program_indices):
     return ' '.join(map(str, program_indices))
 
 if __name__ == "__main__":
-    # Specify the sample index you want to infer
-    SAMPLE_INDEX = 6  # Change this to select a different sample
+    # Optionally, set max_samples to limit the number of samples to process
+    # Set to None to process all samples
+    MAX_SAMPLES = 3000  # e.g., 1000 or None
 
-    run_inference(idx=SAMPLE_INDEX)
+    # Run inference with tallying
+    run_inference(tally=True, max_samples=MAX_SAMPLES)

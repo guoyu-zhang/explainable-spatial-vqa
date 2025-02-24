@@ -3,20 +3,20 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 import numpy as np
+import os
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
-import os
 
 # Configuration
 class Config:
-    LAPTOP_OR_CLUSTER = 'CLUSTER' # CHANGE this depending on running on cluster or pc
+    LAPTOP_OR_CLUSTER = 'L'  # CHANGE this depending on running on cluster or pc
     PATH = '/exports/eddie/scratch/s1808795/vqa/code/' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/'
-    FEATURES_H5 = PATH + 'data/train_features.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
-    QUESTIONS_H5 = PATH + 'h5_files/train_questions.h5'
-    MODELS_DIR = PATH + 'models'
-    MODEL_NAME = PATH + 'models/best_lstm_iqap_no_tf.pth'
+    FEATURES_H5 = '/exports/eddie/scratch/s1808795/vqa/code/data/train_features.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
+    QUESTIONS_H5 = '/exports/eddie/scratch/s1808795/vqa/code/h5_files/train_questions.h5' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/h5_files/train_questions.h5'
+    MODELS_DIR = '/exports/eddie/scratch/s1808795/vqa/code/models/' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/models/'
+    MODEL_NAME = '/exports/eddie/scratch/s1808795/vqa/code/models/best_lstm_iqap_no_tf.pth' if LAPTOP_OR_CLUSTER == 'CLUSTER' else '/Users/guoyuzhang/University/Y5/diss/vqa/code/models/best_lstm_iqap2.pth'
     BATCH_SIZE = 64
-    EMBEDDING_DIM = 256
+    EMBEDDING_DIM = 256  # Set back to 256
     LSTM_HIDDEN_DIM = 512
     IMAGE_FEATURE_DIM = 1024 * 14 * 14  # Flattened image features
     NUM_CLASSES = None  # To be determined from data
@@ -29,6 +29,7 @@ class Config:
     PROGRAM_VOCAB_SIZE = None  # To be determined from data
     PATIENCE = 10
 
+# Set random seeds for reproducibility
 torch.manual_seed(Config.SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -78,7 +79,7 @@ class VQADataset(Dataset):
         if self.questions_file is not None:
             self.questions_file.close()
 
-# Model Definition
+# Model Definition (Adjusted)
 class VQAModel(nn.Module):
     def __init__(self, vocab_size, embedding_dim, lstm_hidden_dim, image_feature_dim, num_classes, program_vocab_size, program_seq_len, sos_token, eos_token):
         super(VQAModel, self).__init__()
@@ -95,7 +96,12 @@ class VQAModel(nn.Module):
         self.program_seq_len = program_seq_len
         self.program_vocab_size = program_vocab_size
         self.program_decoder_fc = nn.Linear(lstm_hidden_dim * 2, lstm_hidden_dim)
-        self.program_decoder_lstm = nn.LSTM(embedding_dim, lstm_hidden_dim, batch_first=True)
+        
+        # **Projection layer to match input_size=512 for program_decoder_lstm**
+        self.program_decoder_projection = nn.Linear(embedding_dim, 512)
+        
+        # **Update input_size to 512**
+        self.program_decoder_lstm = nn.LSTM(512, lstm_hidden_dim, batch_first=True)
         self.program_output = nn.Linear(lstm_hidden_dim, program_vocab_size)
         
         # Special tokens
@@ -137,7 +143,11 @@ class VQAModel(nn.Module):
 
         for t in range(self.program_seq_len):
             embedded_token = self.embedding(input_token).unsqueeze(1)  # (batch, 1, embedding_dim)
-            decoder_output, (decoder_hidden, decoder_cell) = self.program_decoder_lstm(embedded_token, (decoder_hidden, decoder_cell))
+            
+            # **Project embedded_token to 512 dimensions**
+            decoder_input = self.program_decoder_projection(embedded_token)  # (batch, 1, 512)
+            
+            decoder_output, (decoder_hidden, decoder_cell) = self.program_decoder_lstm(decoder_input, (decoder_hidden, decoder_cell))
             logits = self.program_output(decoder_output.squeeze(1))  # (batch, program_vocab_size)
             program_outputs[:, t, :] = logits
 
@@ -149,75 +159,7 @@ class VQAModel(nn.Module):
 
         return answer_output, program_outputs
 
-# Utility function to get the vocabulary size and number of classes
-def get_data_info(questions_h5_path):
-    with h5py.File(questions_h5_path, 'r') as f:
-        questions = f['questions']
-        answers = f['answers']
-        programs = f['programs']
-        vocab_size = int(np.max(questions)) + 1  # Assuming 0 is padding
-        num_classes = int(np.max(answers)) + 1
-        program_vocab_size = int(np.max(programs)) + 1
-    return vocab_size, num_classes, program_vocab_size
-
-# Training and Evaluation Functions
-def train_epoch(model, dataloader, criterion_answer, criterion_program, optimizer, device, teacher_forcing_ratio=0.0):
-    model.train()
-    running_loss = 0.0
-    correct_answer = 0
-    correct_program = 0
-    correct_tokens = 0
-    total = 0
-    total_tokens = 0
-
-    for image_features, questions, answers, programs in tqdm(dataloader, desc="Training", leave=False):
-        image_features = image_features.to(device)
-        questions = questions.to(device)
-        answers = answers.to(device)
-        programs = programs.to(device)
-
-        optimizer.zero_grad()
-        outputs_answer, outputs_program = model(image_features, questions, programs, teacher_forcing_ratio=teacher_forcing_ratio)
-
-        # Compute answer loss
-        loss_answer = criterion_answer(outputs_answer, answers)
-
-        # Compute program loss
-        # Reshape outputs_program to (batch * seq_len, vocab_size)
-        outputs_program_reshaped = outputs_program.view(-1, outputs_program.size(-1))
-        # Reshape programs to (batch * seq_len)
-        programs_reshaped = programs.view(-1)
-        loss_program = criterion_program(outputs_program_reshaped, programs_reshaped)
-
-        # Total loss
-        loss = loss_answer + loss_program
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item() * image_features.size(0)
-
-        # Compute answer accuracy
-        _, predicted_answer = torch.max(outputs_answer, 1)
-        correct_answer += (predicted_answer == answers).sum().item()
-
-        # Compute program accuracy (exact match)
-        _, predicted_program = torch.max(outputs_program, 2)  # (batch, seq_len)
-        exact_matches = (predicted_program == programs).all(dim=1).sum().item()
-        correct_program += exact_matches
-
-        # Compute token-wise accuracy
-        correct_tokens += (predicted_program == programs).sum().item()
-        total_tokens += programs.numel()
-
-        total += answers.size(0)
-
-    epoch_loss = running_loss / total
-    epoch_acc_answer = correct_answer / total
-    epoch_acc_program = correct_program / total
-    epoch_token_acc = correct_tokens / total_tokens
-
-    return epoch_loss, epoch_acc_answer, epoch_acc_program, epoch_token_acc
-
+# Training and Evaluation Functions (Only needed for consistency)
 def evaluate(model, dataloader, criterion_answer, criterion_program, device):
     model.eval()
     running_loss = 0.0
@@ -271,20 +213,71 @@ def evaluate(model, dataloader, criterion_answer, criterion_program, device):
 
     return epoch_loss, epoch_acc_answer, epoch_acc_program, epoch_token_acc
 
-# Main Training Loop
+# Inference Function
+def inference(model, dataloader, device, num_samples=10):
+    model.eval()
+    samples_processed = 0
+
+    with torch.no_grad():
+        for image_features, questions, answers, programs in dataloader:
+            image_features = image_features.to(device)
+            questions = questions.to(device)
+            answers = answers.to(device)
+            programs = programs.to(device)
+
+            # Get model predictions
+            outputs_answer, outputs_program = model(image_features, questions, program_targets=None, teacher_forcing_ratio=0.0)
+
+            # Get predicted answers
+            _, predicted_answers = torch.max(outputs_answer, 1)  # (batch,)
+
+            # Get predicted programs
+            predicted_programs = torch.argmax(outputs_program, dim=2)  # (batch, seq_len)
+
+            batch_size = questions.size(0)
+
+            for i in range(batch_size):
+                if samples_processed >= num_samples:
+                    return
+
+                # Get numerical data
+                question_indices = questions[i].cpu().numpy().tolist()
+                gt_answer = answers[i].item()
+                pred_answer = predicted_answers[i].item()
+                gt_program = programs[i].cpu().numpy().tolist()
+                pred_program = predicted_programs[i].cpu().numpy().tolist()
+
+                print(f"Sample {samples_processed + 1}:")
+                print(f"Question Indices: {question_indices}")
+                print(f"Ground Truth Answer Index: {gt_answer}")
+                print(f"Predicted Answer Index: {pred_answer}")
+                print(f"Ground Truth Program Indices: {gt_program}")
+                print(f"Predicted Program Indices: {pred_program}")
+                print("-" * 50)
+
+                samples_processed += 1
+
+# Main Inference Loop
 def main():
-    os.makedirs(Config.MODELS_DIR, exist_ok=True)
-    # Get data info
-    vocab_size, num_classes, program_vocab_size = get_data_info(Config.QUESTIONS_H5)
+    # os.makedirs(Config.MODELS_DIR, exist_ok=True)
+    # Determine the number of classes and vocab sizes
+    with h5py.File(Config.QUESTIONS_H5, 'r') as f:
+        questions = f['questions'][:]
+        answers = f['answers'][:]
+        programs = f['programs'][:]
+        vocab_size = int(np.max(questions)) + 1  # Assuming 0 is padding
+        num_classes = int(np.max(answers)) + 1
+        program_vocab_size = int(np.max(programs)) + 1
+
     Config.NUM_CLASSES = num_classes
     Config.PROGRAM_VOCAB_SIZE = program_vocab_size
     print(f"Vocab Size: {vocab_size}, Number of Classes: {num_classes}, Program Vocab Size: {program_vocab_size}")
 
     # Create dataset indices
-    total_samples = 699989
+    total_samples = len(answers)  # Dynamically determine total samples
     indices = list(range(total_samples))
     
-    # Split indices into train, val, test
+    # Split indices into train, val, test (same as training script)
     train_val_indices, test_indices = train_test_split(
         indices, test_size=Config.TEST_SPLIT, random_state=Config.SEED)
     train_indices, val_indices = train_test_split(
@@ -292,35 +285,28 @@ def main():
 
     print(f"Train samples: {len(train_indices)}, Val samples: {len(val_indices)}, Test samples: {len(test_indices)}")
 
-    # Create datasets
-    train_dataset = VQADataset(Config.FEATURES_H5, Config.QUESTIONS_H5, train_indices)
-    val_dataset = VQADataset(Config.FEATURES_H5, Config.QUESTIONS_H5, val_indices)
+    # Create test dataset
     test_dataset = VQADataset(Config.FEATURES_H5, Config.QUESTIONS_H5, test_indices)
 
     # Determine the number of CPU cores for DataLoader
     import multiprocessing
     num_workers = min(4, multiprocessing.cpu_count()) 
 
-    # Create dataloaders
-    train_loader = DataLoader(train_dataset, batch_size=Config.BATCH_SIZE, shuffle=True, 
-                              num_workers=num_workers, pin_memory=True)
-    val_loader = DataLoader(val_dataset, batch_size=Config.BATCH_SIZE, shuffle=False, 
-                            num_workers=num_workers, pin_memory=True)
+    # Create test dataloader
     test_loader = DataLoader(test_dataset, batch_size=Config.BATCH_SIZE, shuffle=False, 
                              num_workers=num_workers, pin_memory=True)
 
-    # Initialize model, loss, optimizer
-    # Device configuration
-    device = torch.device('mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu'))
+    # Initialize model
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
-    # Define special tokens (ensure these are correctly set based on your data)
+    # Define special tokens (ensure these match your training setup)
     SOS_TOKEN = 1  # Example value; set to your actual SOS token index
     EOS_TOKEN = 2  # Example value; set to your actual EOS token index
 
     model = VQAModel(
         vocab_size=vocab_size,
-        embedding_dim=Config.EMBEDDING_DIM,
+        embedding_dim=Config.EMBEDDING_DIM,  # Now 256
         lstm_hidden_dim=Config.LSTM_HIDDEN_DIM,
         image_feature_dim=Config.IMAGE_FEATURE_DIM,
         num_classes=Config.NUM_CLASSES,
@@ -330,55 +316,26 @@ def main():
         eos_token=EOS_TOKEN
     ).to(device)
 
-    criterion_answer = nn.CrossEntropyLoss()
-    criterion_program = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
+    # Load the trained model weights
+    if not os.path.exists(Config.MODEL_NAME):
+        print(f"Model file not found at {Config.MODEL_NAME}. Please check the path.")
+        return
 
-    best_val_acc = 0.0
-    patience = Config.PATIENCE
-    epochs_no_improve = 0
+    # **Load the state dict with proper handling**
+    checkpoint = torch.load(Config.MODEL_NAME, map_location=device)
+    state_dict = model.state_dict()
 
-    for epoch in range(Config.NUM_EPOCHS):
-        print(f"\nEpoch {epoch+1}/{Config.NUM_EPOCHS}")
+    # **Filter out unnecessary keys and handle mismatches**
+    filtered_checkpoint = {k: v for k, v in checkpoint.items() if k in state_dict and v.size() == state_dict[k].size()}
 
-        # Training
-        train_loss, train_acc_answer, train_acc_program, train_token_acc = train_epoch(
-            model, train_loader, criterion_answer, criterion_program, optimizer, device, teacher_forcing_ratio=0.0)
-        print(f"Train Loss: {train_loss:.4f}, "
-              f"Train Acc Answer: {train_acc_answer:.4f}, "
-              f"Train Acc Program: {train_acc_program:.4f}, "
-              f"Train Token Acc: {train_token_acc:.4f}")
+    # **Update the current model's state dict**
+    state_dict.update(filtered_checkpoint)
+    model.load_state_dict(state_dict)
+    model.eval()
+    print("Model loaded successfully with partial state dict (mismatched layers were ignored).")
 
-        # Validation
-        val_loss, val_acc_answer, val_acc_program, val_token_acc = evaluate(
-            model, val_loader, criterion_answer, criterion_program, device)
-        print(f"Val Loss: {val_loss:.4f}, "
-              f"Val Acc Answer: {val_acc_answer:.4f}, "
-              f"Val Acc Program: {val_acc_program:.4f}, "
-              f"Val Token Acc: {val_token_acc:.4f}")
-
-        # Save the best model based on validation answer accuracy
-        if val_acc_answer > best_val_acc:
-            best_val_acc = val_acc_answer
-            torch.save(model.state_dict(), Config.MODEL_NAME)
-            print("Best model saved.")
-            epochs_no_improve = 0
-        else:
-            epochs_no_improve += 1
-            print(f"No improvement in validation accuracy for {epochs_no_improve} epoch(s).")
-
-            if epochs_no_improve >= patience:
-                print("Early stopping triggered. Stopping training.")
-                break
-
-    # Load the best model for testing
-    model.load_state_dict(torch.load(Config.MODEL_NAME))
-    test_loss, test_acc_answer, test_acc_program, test_token_acc = evaluate(
-        model, test_loader, criterion_answer, criterion_program, device)
-    print(f"\nTest Loss: {test_loss:.4f}, "
-          f"Test Acc Answer: {test_acc_answer:.4f}, "
-          f"Test Acc Program: {test_acc_program:.4f}, "
-          f"Test Token Acc: {test_token_acc:.4f}")
+    # Perform inference and print numerical predictions
+    inference(model, test_loader, device, num_samples=10)
 
 if __name__ == "__main__":
     main()

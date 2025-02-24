@@ -39,15 +39,15 @@ def main():
     and write the new JSON structure to a new file.
     """
     # Define the input and output file paths
-    input_file_path = 'data/CLEVR_v1.0/questions/CLEVR_val_questions.json'
-    output_file_path = 'CLEVR_val_questions_first.json'  # Change as needed
+    input_file_path = 'data/CLEVR_v1.0/scenes/CLEVR_val_scenes.json'
+    output_file_path = 'CLEVR_val_scenes_first.json'  # Change as needed
 
     # Load the original JSON data
     json_data = load_json(input_file_path)
 
     if json_data is not None:
         # Check if 'b' exists and is a list
-        key_to_modify = 'questions'  # Replace 'questions' with 'b' if necessary
+        key_to_modify = 'scenes'  # Replace 'questions' with 'b' if necessary
         if key_to_modify in json_data:
             if isinstance(json_data[key_to_modify], list):
                 if len(json_data[key_to_modify]) > 0:

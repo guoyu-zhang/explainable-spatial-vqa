@@ -201,7 +201,7 @@ def main():
     ).to(device)
 
     # Load the trained model weights
-    model.load_state_dict(torch.load('models/best_resnet101_lstm_iqap_model.pth', map_location=device))
+    model.load_state_dict(torch.load('models/best_lstm_iqap2.pth', map_location=device))
     model.eval()
 
     # Create a list of all indices

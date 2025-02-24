@@ -1,0 +1,131 @@
+Vocab Size: 85, Number of Classes: 32, Program Vocab Size: 44
+Train samples: 559991, Val samples: 69999, Test samples: 69999
+Using device: cuda
+
+Epoch 1/100
+Train Loss: 1.7827, Train Acc Answer: 0.4113, Train Acc Program: 0.0000, Train Token Acc: 0.3807
+Val Loss: 1.1666, Val Acc Answer: 0.4182, Val Acc Program: 0.0000, Val Token Acc: 0.4694
+Best model saved.
+
+Epoch 2/100
+Train Loss: 1.3001, Train Acc Answer: 0.4176, Train Acc Program: 0.0000, Train Token Acc: 0.4544
+Val Loss: 1.4099, Val Acc Answer: 0.4198, Val Acc Program: 0.0000, Val Token Acc: 0.4378
+Best model saved.
+
+Epoch 3/100
+Train Loss: 1.2620, Train Acc Answer: 0.4195, Train Acc Program: 0.0000, Train Token Acc: 0.4591
+Val Loss: 1.0732, Val Acc Answer: 0.4253, Val Acc Program: 0.0000, Val Token Acc: 0.4811
+Best model saved.
+
+Epoch 4/100
+Train Loss: 1.2040, Train Acc Answer: 0.4212, Train Acc Program: 0.0000, Train Token Acc: 0.4681
+Val Loss: 1.1932, Val Acc Answer: 0.4239, Val Acc Program: 0.0000, Val Token Acc: 0.4676
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 5/100
+Train Loss: 1.2293, Train Acc Answer: 0.4226, Train Acc Program: 0.0000, Train Token Acc: 0.4649
+Val Loss: 1.1582, Val Acc Answer: 0.4300, Val Acc Program: 0.0000, Val Token Acc: 0.4717
+Best model saved.
+
+Epoch 6/100
+Train Loss: 1.2427, Train Acc Answer: 0.4258, Train Acc Program: 0.0000, Train Token Acc: 0.4616
+Val Loss: 1.1004, Val Acc Answer: 0.4315, Val Acc Program: 0.0000, Val Token Acc: 0.4776
+Best model saved.
+
+Epoch 7/100
+Train Loss: 1.3270, Train Acc Answer: 0.4217, Train Acc Program: 0.0000, Train Token Acc: 0.4512
+Val Loss: 1.1062, Val Acc Answer: 0.4298, Val Acc Program: 0.0000, Val Token Acc: 0.4758
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 8/100
+Train Loss: 1.2298, Train Acc Answer: 0.4274, Train Acc Program: 0.0000, Train Token Acc: 0.4620
+Val Loss: 1.1008, Val Acc Answer: 0.4342, Val Acc Program: 0.0000, Val Token Acc: 0.4770
+Best model saved.
+
+Epoch 9/100
+Train Loss: 1.2378, Train Acc Answer: 0.4181, Train Acc Program: 0.0000, Train Token Acc: 0.4705
+Val Loss: 1.0857, Val Acc Answer: 0.4223, Val Acc Program: 0.0000, Val Token Acc: 0.4822
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 10/100
+Train Loss: 1.2331, Train Acc Answer: 0.4175, Train Acc Program: 0.0000, Train Token Acc: 0.4709
+Val Loss: 1.0524, Val Acc Answer: 0.4302, Val Acc Program: 0.0000, Val Token Acc: 0.4830
+No improvement in validation answer accuracy for 2 epochs.
+
+Epoch 11/100
+Train Loss: 1.1006, Train Acc Answer: 0.4289, Train Acc Program: 0.0000, Train Token Acc: 0.4789
+Val Loss: 1.0224, Val Acc Answer: 0.4367, Val Acc Program: 0.0000, Val Token Acc: 0.4856
+Best model saved.
+
+Epoch 12/100
+Train Loss: 1.0792, Train Acc Answer: 0.4315, Train Acc Program: 0.0000, Train Token Acc: 0.4812
+Val Loss: 1.0188, Val Acc Answer: 0.4383, Val Acc Program: 0.0000, Val Token Acc: 0.4858
+Best model saved.
+
+Epoch 13/100
+Train Loss: 1.0728, Train Acc Answer: 0.4317, Train Acc Program: 0.0000, Train Token Acc: 0.4817
+Val Loss: 1.0149, Val Acc Answer: 0.4370, Val Acc Program: 0.0000, Val Token Acc: 0.4862
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 14/100
+Train Loss: 1.0670, Train Acc Answer: 0.4320, Train Acc Program: 0.0000, Train Token Acc: 0.4825
+Val Loss: 1.0130, Val Acc Answer: 0.4391, Val Acc Program: 0.0000, Val Token Acc: 0.4864
+Best model saved.
+
+Epoch 15/100
+Train Loss: 1.0627, Train Acc Answer: 0.4324, Train Acc Program: 0.0000, Train Token Acc: 0.4829
+Val Loss: 1.0116, Val Acc Answer: 0.4385, Val Acc Program: 0.0000, Val Token Acc: 0.4864
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 16/100
+Train Loss: 1.0600, Train Acc Answer: 0.4344, Train Acc Program: 0.0000, Train Token Acc: 0.4831
+Val Loss: 1.0096, Val Acc Answer: 0.4419, Val Acc Program: 0.0000, Val Token Acc: 0.4865
+Best model saved.
+
+Epoch 17/100
+Train Loss: 1.0572, Train Acc Answer: 0.4356, Train Acc Program: 0.0000, Train Token Acc: 0.4834
+Val Loss: 1.0088, Val Acc Answer: 0.4414, Val Acc Program: 0.0000, Val Token Acc: 0.4865
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 18/100
+Train Loss: 1.0535, Train Acc Answer: 0.4359, Train Acc Program: 0.0000, Train Token Acc: 0.4837
+Val Loss: 1.0066, Val Acc Answer: 0.4411, Val Acc Program: 0.0000, Val Token Acc: 0.4866
+No improvement in validation answer accuracy for 2 epochs.
+
+Epoch 19/100
+Train Loss: 1.0512, Train Acc Answer: 0.4364, Train Acc Program: 0.0000, Train Token Acc: 0.4839
+Val Loss: 1.0053, Val Acc Answer: 0.4438, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+Best model saved.
+
+Epoch 20/100
+Train Loss: 1.0488, Train Acc Answer: 0.4374, Train Acc Program: 0.0000, Train Token Acc: 0.4841
+Val Loss: 1.0060, Val Acc Answer: 0.4437, Val Acc Program: 0.0000, Val Token Acc: 0.4866
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 21/100
+Train Loss: 1.0470, Train Acc Answer: 0.4383, Train Acc Program: 0.0000, Train Token Acc: 0.4841
+Val Loss: 1.0043, Val Acc Answer: 0.4445, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+Best model saved.
+
+Epoch 22/100
+Train Loss: 1.0459, Train Acc Answer: 0.4377, Train Acc Program: 0.0000, Train Token Acc: 0.4842
+Val Loss: 1.0038, Val Acc Answer: 0.4444, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+No improvement in validation answer accuracy for 1 epochs.
+
+Epoch 23/100
+Train Loss: 1.0447, Train Acc Answer: 0.4385, Train Acc Program: 0.0000, Train Token Acc: 0.4843
+Val Loss: 1.0039, Val Acc Answer: 0.4442, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+No improvement in validation answer accuracy for 2 epochs.
+
+Epoch 24/100
+Train Loss: 1.0440, Train Acc Answer: 0.4384, Train Acc Program: 0.0000, Train Token Acc: 0.4844
+Val Loss: 1.0037, Val Acc Answer: 0.4451, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+Best model saved.
+
+Epoch 25/100
+Train Loss: 1.0435, Train Acc Answer: 0.4394, Train Acc Program: 0.0000, Train Token Acc: 0.4844
+Val Loss: 1.0032, Val Acc Answer: 0.4448, Val Acc Program: 0.0000, Val Token Acc: 0.4867
+No improvement in validation answer accuracy for 1 epochs.
+
+41 42
+this ignores index 0

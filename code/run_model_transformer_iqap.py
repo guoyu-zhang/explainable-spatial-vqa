@@ -16,7 +16,7 @@ class Config:
     FEATURES_H5 = PATH + 'data/train_features.h5' if LAPTOP_OR_CLUSTER == 'C' else '/Users/guoyuzhang/University/Y5/diss/clevr-iep/data/train_features.h5'
     QUESTIONS_H5 = PATH + 'h5_files/train_questions.h5'
     MODELS_DIR = PATH + 'models'
-    MODEL_NAME = PATH + 'models/best_transformer_iqap.pth'  # Ensure this is the correct model path
+    MODEL_NAME = PATH + 'models/cot_best_transformer_iqap.pth'  # Ensure this is the correct model path
     BATCH_SIZE = 64
     EMBEDDING_DIM = 256
     HIDDEN_DIM = 256  # Match embedding_dim for consistency
@@ -139,7 +139,7 @@ class VQAModel(nn.Module):
 
         # Transformer Encoder with batch_first=True
         encoder_layers = TransformerEncoderLayer(d_model=embedding_dim, nhead=4, batch_first=True)
-        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers=2)
+        self.transformer_encoder = TransformerEncoder(encoder_layers, num_layers=1)
 
         # Answer classifier (MLP)
         self.answer_classifier = nn.Sequential(
@@ -153,7 +153,7 @@ class VQAModel(nn.Module):
         self.program_decoder_embedding = nn.Embedding(program_vocab_size, embedding_dim, padding_idx=0)
         self.pos_decoder = PositionalEncoding(embedding_dim, dropout=0.1, max_len=program_seq_len + 1)  # +1 for <SOS>
         decoder_layers = TransformerDecoderLayer(d_model=embedding_dim, nhead=4, batch_first=True)
-        self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers=2)
+        self.transformer_decoder = TransformerDecoder(decoder_layers, num_layers=1)
         self.program_output = nn.Linear(embedding_dim, program_vocab_size)
 
     def forward(self, image_features, questions, program_targets=None, max_program_length=None):
