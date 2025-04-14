@@ -8,7 +8,7 @@ import h5py
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 ###############################################################################
-# Bounding box logic (modified to round values to 1 decimal place)
+# Bounding box logic (rounding to 4 decimal places)
 ###############################################################################
 def approximate_bounding_box(obj, scene):
     x, y, depth = obj['pixel_coords']
@@ -41,17 +41,12 @@ def approximate_bounding_box(obj, scene):
         width_l = height_u
         width_r = height_u
 
-    xmin = (x - width_l) / 480.0
-    xmax = (x + width_r) / 480.0
-    ymin = (y - height_d) / 320.0
-    ymax = (y + height_u) / 320.0
+    xmin = max(0.0, min(1.0, (x - width_l) / 480.0))
+    xmax = max(0.0, min(1.0, (x + width_r) / 480.0))
+    ymin = max(0.0, min(1.0, (y - height_d) / 320.0))
+    ymax = max(0.0, min(1.0, (y + height_u) / 320.0))
 
-    xmin = round(max(0.0, min(1.0, xmin)), 1)
-    xmax = round(max(0.0, min(1.0, xmax)), 1)
-    ymin = round(max(0.0, min(1.0, ymin)), 1)
-    ymax = round(max(0.0, min(1.0, ymax)), 1)
-
-    return (xmin, ymin, xmax, ymax)
+    return (round(xmin, 4), round(ymin, 4), round(xmax, 4), round(ymax, 4))
 
 ###############################################################################
 # CLEVR function handlers
@@ -322,7 +317,7 @@ def annotate_questions_with_relevant_objects(scenes_path: str, questions_path: s
                         for obj_idx in prev_obj_indices:
                             if obj_idx is not None and 0 <= obj_idx < len(scene['objects']):
                                 bbox = approximate_bounding_box(scene['objects'][obj_idx], scene)
-                                bbox_str = f"[{bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}]"
+                                bbox_str = f"[{bbox[0]:.4f} {bbox[1]:.4f} {bbox[2]:.4f} {bbox[3]:.4f}]"
                                 bboxes.append(bbox_str)
                 input_values = " ".join(bboxes).strip()
             annotated_step['input_values'] = input_values
@@ -338,7 +333,7 @@ def annotate_questions_with_relevant_objects(scenes_path: str, questions_path: s
                 for obj_idx in rel_objs:
                     if obj_idx is not None and 0 <= obj_idx < len(scene['objects']):
                         bbox = approximate_bounding_box(scene['objects'][obj_idx], scene)
-                        bbox_str = f"[{bbox[0]} {bbox[1]} {bbox[2]} {bbox[3]}]"
+                        bbox_str = f"[{bbox[0]:.4f} {bbox[1]:.4f} {bbox[2]:.4f} {bbox[3]:.4f}]"
                         bboxes.append(bbox_str)
                 annotated_step['output_values'] = " ".join(bboxes).strip()
             else:
@@ -370,11 +365,24 @@ def tokenize_field(text: str, field: str) -> List[str]:
         return [text] if text else []
     return re.findall(r'\[|\]|[^\[\]\s]+', text)
 
+# Helper to check if a text is composed solely of bounding box tokens.
+BBOX_PATTERN = re.compile(r'\[\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\s+\d+\.\d+\]')
+def is_bounding_box_text(text: str) -> bool:
+    matches = BBOX_PATTERN.findall(text)
+    if not matches:
+        return False
+    # Reconstruct the string from found bounding boxes.
+    reconstructed = " ".join(matches)
+    return reconstructed.strip() == text.strip()
+
 def build_vocab_from_dataset(annotated_qs: List[Dict[str, Any]]) -> Dict[str, int]:
     vocab = {}
     next_index = 0
     def add_tokens_from_text(text: str, field: str):
         nonlocal next_index
+        # Skip the text if it is solely composed of bounding box tokens.
+        if is_bounding_box_text(text):
+            return
         tokens = tokenize_field(text, field)
         for token in tokens:
             can_tok = canonicalize(token)
@@ -407,15 +415,29 @@ def apply_vocab(annotated_q: Dict[str, Any], vocab: Dict[str, int]) -> Dict[str,
         func_part = parts[0]
         rest = parts[1] if len(parts) > 1 else ""
         converted_func = convert_text(func_part, "function")
-        converted_rest = convert_text(rest, "other") if rest else ""
+        # If the rest of the chain is bounding box text, keep it unchanged.
+        if is_bounding_box_text(rest):
+            converted_rest = rest
+        else:
+            converted_rest = convert_text(rest, "other") if rest else ""
         return f"{converted_func} {converted_rest}".strip() if converted_rest else converted_func
 
     annotated_q["final_chain_of_thought"] = [convert_chain(chain) for chain in annotated_q.get("final_chain_of_thought", [])]
     
     for step in annotated_q.get("annotated_program", []):
         step["function"] = convert_text(step.get("function", ""), "function")
-        step["input_values"] = convert_text(step.get("input_values", ""), "other")
-        step["output_values"] = convert_text(step.get("output_values", ""), "other")
+        # For input_values and output_values, if they are bounding box strings, leave them as is.
+        input_val = step.get("input_values", "")
+        if is_bounding_box_text(input_val):
+            step["input_values"] = input_val
+        else:
+            step["input_values"] = convert_text(input_val, "other")
+        
+        output_val = step.get("output_values", "")
+        if is_bounding_box_text(output_val):
+            step["output_values"] = output_val
+        else:
+            step["output_values"] = convert_text(output_val, "other")
     
     return annotated_q
 
@@ -426,8 +448,8 @@ def main():
     scenes_path = "/Users/guoyuzhang/University/Y5/diss/vqa/code/data/CLEVR_v1.0/scenes/CLEVR_train_scenes.json"
     questions_path = "/Users/guoyuzhang/University/Y5/diss/vqa/code/data/CLEVR_v1.0/questions/CLEVR_train_questions.json"
     
-    json_output_path = "/Users/guoyuzhang/University/Y5/diss/vqa/code/data/CLEVR_v1.0/annotated_questions1.json"
-    vocab_output_path = "vocab.json"
+    json_output_path = "/Users/guoyuzhang/University/Y5/diss/vqa/code/data/CLEVR_v1.0/annotated_questions2.json"
+    vocab_output_path = "vocab2.json"
     
     # Instead of one HDF5 file with two datasets, we create two separate HDF5 files.
     h5_questions_path = "annotated_questions.h5"
@@ -443,9 +465,9 @@ def main():
     vocab = build_vocab_from_dataset(annotated_questions)
     converted_questions = [apply_vocab(q, vocab) for q in annotated_questions]
     
-    # Save annotated questions to JSON file.
+    # Save annotated questions to JSON file as a list (not wrapped in a "questions" key)
     with open(json_output_path, 'w') as f:
-        json.dump({"questions": converted_questions}, f, indent=4)
+        json.dump(converted_questions, f, indent=4)
     logging.info(f"Saved converted annotated questions to {json_output_path}")
     
     # Save vocabulary to JSON file.
@@ -453,8 +475,8 @@ def main():
         json.dump(vocab, f, indent=4)
     logging.info(f"Saved vocabulary to {vocab_output_path}")
     
-    # Save questions JSON into a separate HDF5 file.
-    questions_json = json.dumps({"questions": converted_questions})
+    # Save questions JSON into a separate HDF5 file (directly the list of question objects)
+    questions_json = json.dumps(converted_questions)
     dt = h5py.string_dtype(encoding='utf-8')
     with h5py.File(h5_questions_path, 'w') as hf:
         hf.create_dataset("questions", data=questions_json, dtype=dt)

@@ -6,5 +6,3 @@ torchvision
 matplotlib
 scikit-learn
 tqdm
-nltk
-rouge_score
